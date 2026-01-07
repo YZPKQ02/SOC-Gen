@@ -521,7 +521,7 @@ if __name__ == '__main__':
         bboxes = [sample['bndboxes']]
         obboxes = [sample['obboxes']]
         condition_file_name = sample['condition_file_name']
-        condition_image = Image.open(os.path.join("datasets/dior/test/mlsd", file_name.split("/")[1])).convert('RGB')
+        condition_image = Image.open(os.path.join(data_path, file_name.split("/")[1])).convert('RGB')
         conditioning_image_transforms = transforms.Compose(
             [
                 transforms.Resize((512, 512)),
