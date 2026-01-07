@@ -385,7 +385,7 @@ class StableDiffusionMIPipeline(StableDiffusionControlNetPipeline):
 
         controlnet_keep = []
         for i, t in enumerate(timesteps):
-            controlnet_keep.append(1.0 if t < 850 else 0.0)  # 根据需求调整
+            controlnet_keep.append(1.0 if t < 850 else 0.0)
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
