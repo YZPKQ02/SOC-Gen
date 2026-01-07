@@ -512,6 +512,7 @@ if __name__ == '__main__':
             data.append(json.loads(line))
 
     negative_prompt = 'worst quality, low quality, bad anatomy, watermark, text, blurry'
+
     save_path_prefix = './gen_dior/2025_' + time.strftime('%m%d_%H%M', time.localtime(time.time()))
     
     for sample in data:
@@ -520,7 +521,7 @@ if __name__ == '__main__':
         bboxes = [sample['bndboxes']]
         obboxes = [sample['obboxes']]
         condition_file_name = sample['condition_file_name']
-        condition_image = Image.open(os.path.join(data_path, condition_file_name)).convert('RGB')
+        condition_image = Image.open(os.path.join("datasets/dior/test/mlsd", file_name.split("/")[1])).convert('RGB')
         conditioning_image_transforms = transforms.Compose(
             [
                 transforms.Resize((512, 512)),
@@ -546,3 +547,4 @@ if __name__ == '__main__':
         if os.path.exists(save_path_prefix) == False:
             os.makedirs(save_path_prefix)
         image.save(os.path.join(save_path_prefix, file_name.split("/")[1]))
+
