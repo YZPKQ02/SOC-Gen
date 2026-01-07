@@ -1,0 +1,33 @@
+name: socgen
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pytorch=2.5
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - pip
+  - pip:
+      - diffusers
+      - transformers
+      - accelerate
+      - xformers
+      - timm
+      - numpy
+      - scipy
+      - pillow
+      - opencv-python
+      - scikit-image
+      - pandas
+      - matplotlib
+      - einops
+      - safetensors
+      - huggingface-hub
+      - mmengine
+      - mmcv
+      - pycocotools
+      - segment-anything
+      - ultralytics

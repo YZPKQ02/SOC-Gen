@@ -25,6 +25,19 @@ Training weights and the rest of the code will be coming soon.
 <img src="demo/variation.png" height="100%" width="100%"/>
 </div>
 
+## Environments
+
+```bash
+conda env create -f environment.yaml
+conda activate socgen
+```
+
+## Inference
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python inference.py
+```
+
 # Acknowledgements
 Our work is based on [CC-Diff](https://github.com/AZZMM/CC-Diff) and [ControlNet](https://github.com/lllyasviel/ControlNet), we are deeply grateful for their outstanding contributions.
 
