@@ -170,7 +170,6 @@ class StableDiffusionMIPipeline(StableDiffusionControlNetPipeline):
         text_embeds_list = []
         for prompt in prompts:
             if prompt_embeds_none_flag:
-                # textual inversion: procecss multi-vector tokens if necessary
                 if isinstance(self, TextualInversionLoaderMixin):
                     prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
@@ -239,7 +238,6 @@ class StableDiffusionMIPipeline(StableDiffusionControlNetPipeline):
                 negative_prompt = "worst quality, low quality, bad anatomy"
             uncond_tokens = [negative_prompt] * batch_size
 
-            # textual inversion: procecss multi-vector tokens if necessary
             if isinstance(self, TextualInversionLoaderMixin):
                 uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
@@ -363,7 +361,7 @@ class StableDiffusionMIPipeline(StableDiffusionControlNetPipeline):
                 if name == '':
                     instances.append(torch.zeros([3, 224, 224]))
                 else:
-                    value = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1])    # foreground size based on HBB
+                    value = (bbox[2] - bbox[0]) / (bbox[3] - bbox[1])
                     chosen_file = list(dict_of_images[name].keys())[find_nearest(list(dict_of_images[name].values()), value)]                    
                     img = Image.open(os.path.join('path/to/foreground', name, chosen_file))   
                     instance_imgs.append(img)
