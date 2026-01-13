@@ -33,11 +33,8 @@ def FeedForward(dim, mult=4):
 
 def reshape_tensor(x, heads):
     bs, length, width = x.shape
-    # (bs, length, width) --> (bs, length, n_heads, dim_per_head)
     x = x.view(bs, length, heads, -1)
-    # (bs, length, n_heads, dim_per_head) --> (bs, n_heads, length, dim_per_head)
     x = x.transpose(1, 2)
-    # (bs, n_heads, length, dim_per_head) --> (bs*n_heads, length, dim_per_head)
     x = x.reshape(bs, heads, length, -1)
     return x
 
@@ -75,13 +72,6 @@ class PerceiverAttention(nn.Module):
         self.to_out = nn.Linear(inner_dim, dim, bias=False)
 
     def forward(self, x, latents):
-        """
-        Args:
-            x (torch.Tensor): image features
-                shape (b, n1, D)
-            latent (torch.Tensor): latent features
-                shape (b, n2, D)
-        """
         x = self.norm1(x)
         latents = self.norm2(latents)
 
@@ -95,9 +85,8 @@ class PerceiverAttention(nn.Module):
         k = reshape_tensor(k, self.heads)
         v = reshape_tensor(v, self.heads)
 
-        # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
-        weight = (q * scale) @ (k * scale).transpose(-2, -1)  # More stable with f16 than dividing afterwards
+        weight = (q * scale) @ (k * scale).transpose(-2, -1)
         weight = torch.softmax(weight.float(), dim=-1).type(weight.dtype)
         out = weight @ v
 
@@ -137,9 +126,7 @@ class CrossAttention(nn.Module):
         
         q = self.to_q(x)
         k, v = self.to_kv(context).chunk(2, dim=-1)
-        # print("q shape:", q.shape)
-        # print("k shape:", k.shape)
-
+        
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=self.heads), (q, k, v))
         
         sim = torch.einsum('b i d, b j d -> b i j', q, k) * self.scale
@@ -160,14 +147,14 @@ class Resampler(nn.Module):
         embedding_dim=768,
         output_dim=1024,
         ff_mult=4,
-        max_seq_len: int = 257,  # CLIP tokens + CLS token
+        max_seq_len: int = 257,
         apply_pos_emb: bool = False,
-        num_latents_mean_pooled: int = 0,  # number of latents derived from mean pooled representation of the sequence
+        num_latents_mean_pooled: int = 0,
     ):
         super().__init__()
-        self.pos_emb = nn.Embedding(max_seq_len, embedding_dim) if apply_pos_emb else None # 若apply_pos_emb为True，则初始化位置嵌入层pos_emb
+        self.pos_emb = nn.Embedding(max_seq_len, embedding_dim) if apply_pos_emb else None
 
-        self.latents = nn.Parameter(torch.randn(1, num_queries, dim) / dim**0.5) # 初始化可学习的潜在向量
+        self.latents = nn.Parameter(torch.randn(1, num_queries, dim) / dim**0.5)
 
         self.proj_in = nn.Linear(embedding_dim, dim)
         self.proj_out = nn.Linear(dim, output_dim)

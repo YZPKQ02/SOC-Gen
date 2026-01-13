@@ -76,7 +76,7 @@ class FourierEmbedder():
         for freq in self.freq_bands:
             out.append( torch.sin( freq*x ) )
             out.append( torch.cos( freq*x ) )
-        return torch.cat(out, cat_dim)  # torch.Size([5, 30, 64])
+        return torch.cat(out, cat_dim)
 
 class PositionNet(nn.Module):
     def __init__(self, in_dim, out_dim, fourier_freqs=8):
@@ -85,9 +85,8 @@ class PositionNet(nn.Module):
         self.out_dim = out_dim
 
         self.fourier_embedder = FourierEmbedder(num_freqs=fourier_freqs)
-        self.position_dim = fourier_freqs * 2 * 8  # 2 is sin&cos, 8 is xyxyxyxy
+        self.position_dim = fourier_freqs * 2 * 8
 
-        # -------------------------------------------------------------- #
         self.linears_position = nn.Sequential(
             nn.Linear(self.position_dim, 512),
             nn.SiLU(),
@@ -97,10 +96,8 @@ class PositionNet(nn.Module):
         )
 
     def forward(self, boxes):
-
-        # embedding position (it may includes padding as placeholder)
-        xyxy_embedding = self.fourier_embedder(boxes)  # B*1*4 --> B*1*C torch.Size([5, 1, 64])
-        xyxy_embedding = self.linears_position(xyxy_embedding)  # B*1*C --> B*1*768 torch.Size([5, 1, 768])
+        xyxy_embedding = self.fourier_embedder(boxes)
+        xyxy_embedding = self.linears_position(xyxy_embedding)
 
         return xyxy_embedding
 
@@ -140,12 +137,12 @@ class LayoutAttention(nn.Module):
         HW = H * W
         guidance_mask_o = guidance_mask.view(b * phase_num, HW, 1)
         guidance_mask_t = guidance_mask.view(b * phase_num, 1, HW)
-        guidance_mask_sim = torch.bmm(guidance_mask_o, guidance_mask_t)  # (B * phase_num, HW, HW)
+        guidance_mask_sim = torch.bmm(guidance_mask_o, guidance_mask_t)
         guidance_mask_sim = guidance_mask_sim.view(b, phase_num, HW, HW).sum(dim=1)
-        guidance_mask_sim[guidance_mask_sim > 1] = 1  # (B, HW, HW)
+        guidance_mask_sim[guidance_mask_sim > 1] = 1
         guidance_mask_sim = guidance_mask_sim.view(b, 1, HW, HW)
         guidance_mask_sim = guidance_mask_sim.repeat(1, self.heads, 1, 1)
-        guidance_mask_sim = guidance_mask_sim.view(b * self.heads, HW, HW)  # (B * head, HW, HW)
+        guidance_mask_sim = guidance_mask_sim.view(b * self.heads, HW, HW)
 
         sim[:, :, :HW][guidance_mask_sim == 0] = -torch.finfo(sim.dtype).max
 
@@ -154,8 +151,6 @@ class LayoutAttention(nn.Module):
             max_neg_value = -torch.finfo(sim.dtype).max
             mask = repeat(mask, 'b j -> (b h) () j', h=h)
             sim.masked_fill_(~mask, max_neg_value)
-
-        # attention, what we cannot get enough of
 
         if need_softmax:
             attn = sim.softmax(dim=-1)
@@ -170,7 +165,6 @@ class LayoutAttention(nn.Module):
         else:
             return self.to_out(out)
 
-# feedforward
 class GEGLU(nn.Module):
     def __init__(self, dim_in, dim_out):
         super().__init__()
@@ -213,23 +207,23 @@ class SelfAttention(nn.Module):
         self.to_out = nn.Sequential(nn.Linear(inner_dim, query_dim), nn.Dropout(dropout) )
 
     def forward(self, x):
-        q = self.to_q(x) # B*N*(H*C)
-        k = self.to_k(x) # B*N*(H*C)
-        v = self.to_v(x) # B*N*(H*C)
+        q = self.to_q(x)
+        k = self.to_k(x)
+        v = self.to_v(x)
 
         B, N, HC = q.shape 
         H = self.heads
         C = HC // H 
 
-        q = q.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C) # (B*H)*N*C
-        k = k.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C) # (B*H)*N*C
-        v = v.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C) # (B*H)*N*C
+        q = q.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C)
+        k = k.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C)
+        v = v.view(B,N,H,C).permute(0,2,1,3).reshape(B*H,N,C)
 
-        sim = torch.einsum('b i c, b j c -> b i j', q, k) * self.scale  # (B*H)*N*N
-        attn = sim.softmax(dim=-1) # (B*H)*N*N
+        sim = torch.einsum('b i c, b j c -> b i j', q, k) * self.scale
+        attn = sim.softmax(dim=-1)
 
-        out = torch.einsum('b i j, b j c -> b i c', attn, v) # (B*H)*N*C
-        out = out.view(B,H,N,C).permute(0,2,1,3).reshape(B,N,(H*C)) # B*N*(H*C)
+        out = torch.einsum('b i j, b j c -> b i c', attn, v)
+        out = out.view(B,H,N,C).permute(0,2,1,3).reshape(B,N,(H*C))
 
         return self.to_out(out)
 
@@ -237,7 +231,6 @@ class GatedSelfAttentionDense(nn.Module):
     def __init__(self, query_dim, context_dim,  n_heads, d_head):
         super().__init__()
         
-        # we need a linear projection since we need cat visual feature and obj feature
         self.linear = nn.Linear(context_dim, query_dim)
 
         self.attn = SelfAttention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
@@ -249,8 +242,6 @@ class GatedSelfAttentionDense(nn.Module):
         self.register_parameter('alpha_attn', nn.Parameter(torch.tensor(0.)) )
         self.register_parameter('alpha_dense', nn.Parameter(torch.tensor(0.)) )
 
-        # this can be useful: we can externally change magnitude of tanh(alpha)
-        # for example, when it is set to 0, then the entire model is same as original one 
         self.scale = 1  
 
 
@@ -266,7 +257,6 @@ class GatedSelfAttentionDense(nn.Module):
 
 class MIFusion(nn.Module):
     def __init__(self, C, attn_type='base', context_dim=768, heads=8):
-        # context_dim: SD1.4 768  SD2.1 1024
         super().__init__()
         self.ea_obj = CrossAttention(query_dim=C, context_dim=context_dim,
                                  heads=heads, dim_head=C // heads,
@@ -281,10 +271,6 @@ class MIFusion(nn.Module):
                                   dim_head=C // heads, dropout=0.0)
 
     def forward(self, ca_x, guidance_mask, other_info):
-        # x: (B, instance_num+1, HW, C)
-        # guidance_mask: (B, instance_num, H, W)
-        # box: (instance_num, 4)
-        # image_token: (B, instance_num+1, HW, C)
         full_H = other_info['height']
         full_W = other_info['width']
         B, _, HW, C = ca_x.shape
@@ -292,10 +278,10 @@ class MIFusion(nn.Module):
         down_scale = int(math.sqrt(full_H * full_W // ca_x.shape[2]))
         H = full_H // down_scale
         W = full_W // down_scale
-        guidance_mask = F.interpolate(guidance_mask, size=(H, W), mode='bilinear')   # (B, instance_num, H, W)
+        guidance_mask = F.interpolate(guidance_mask, size=(H, W), mode='bilinear')
 
-        supplement_mask = other_info['supplement_mask']  # (B, 1, 64, 64)
-        supplement_mask = F.interpolate(supplement_mask, size=(H, W), mode='bilinear')  # (B, 1, H, W)
+        supplement_mask = other_info['supplement_mask']
+        supplement_mask = F.interpolate(supplement_mask, size=(H, W), mode='bilinear')
         image_token = other_info['image_token']
         assert image_token.shape == ca_x.shape
         context = other_info['context_pooler']
@@ -303,7 +289,6 @@ class MIFusion(nn.Module):
         box = box.view(B * instance_num, 1, -1)
         box_token = self.pos_net(box)
         
-        # add reference image feature as condition
         img_features, bg_features = other_info['ref_features']
         
         context_fg = torch.cat([context[1:, ...], img_features, box_token], dim=1)
@@ -313,7 +298,7 @@ class MIFusion(nn.Module):
         sigmoid_values = other_info['sigmoid_values']
         sigmoid_values = F.interpolate(sigmoid_values, size=(H, W), mode='bilinear')
         ea_x = ea_x * sigmoid_values.view(B, instance_num, HW, 1)
-        ca_x[:, 1:, ...] = ca_x[:, 1:, ...] * sigmoid_values.view(B, instance_num, HW, 1)  # (B, phase_num, HW, C)
+        ca_x[:, 1:, ...] = ca_x[:, 1:, ...] * sigmoid_values.view(B, instance_num, HW, 1)
         ca_x[:, 1:, ...] = ca_x[:, 1:, ...] + ea_x
         
         context_bg = torch.cat([context[[0], ...], bg_features], dim=1)
@@ -321,8 +306,8 @@ class MIFusion(nn.Module):
                              context=context_bg, return_attn=True)
         ca_x[:, 0, ...] = ca_x[:, 0, ...] + ea_x_bg
         
-        fusion_template = self.la(x=image_token[:, 0, ...], guidance_mask=torch.cat([guidance_mask[:, :, ...], supplement_mask], dim=1))  # (B, HW, C)
-        fusion_template = fusion_template.view(B, 1, HW, C)  # (B, 1, HW, C)
+        fusion_template = self.la(x=image_token[:, 0, ...], guidance_mask=torch.cat([guidance_mask[:, :, ...], supplement_mask], dim=1))
+        fusion_template = fusion_template.view(B, 1, HW, C)
         ca_x = torch.cat([ca_x, fusion_template], dim = 1)
         out = torch.sum(ca_x, dim=1)
         return out

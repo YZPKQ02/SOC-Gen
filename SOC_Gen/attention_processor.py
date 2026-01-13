@@ -66,9 +66,7 @@ class AttnProcessor(nn.Module):
         hidden_states = torch.bmm(attention_probs, value)
         hidden_states = attn.batch_to_head_dim(hidden_states)
 
-        # linear proj
         hidden_states = attn.to_out[0](hidden_states)
-        # dropout
         hidden_states = attn.to_out[1](hidden_states)
 
         if input_ndim == 4:
@@ -123,7 +121,6 @@ class MaskedProcessor(nn.Module):
                 hidden_states_cond = hidden_states.repeat(instance_num + 1, 1, 1)
                 hidden_states = hidden_states_cond
         
-        # QKV Operation of Vanilla Self-Attention or Cross-Attention
         query = attn.to_q(hidden_states)
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
@@ -149,8 +146,6 @@ class MaskedProcessor(nn.Module):
         
         guidance_masks = []
         in_box = []
-        # Construct Instance Guidance Mask
-        # 根据layout来生成掩码
         guidance_masks = []
         for obbox in obboxes[0]:
             guidance_mask = np.zeros((height, width))
@@ -164,7 +159,6 @@ class MaskedProcessor(nn.Module):
                 guidance_masks.append(guidance_mask[None, ...])
             in_box.append([obbox[0], obbox[2], obbox[4], obbox[6], obbox[1], obbox[3], obbox[5], obbox[7]])
         
-        # Construct Background Guidance Mask
         sup_mask = get_sup_mask(guidance_masks)
         supplement_mask = torch.from_numpy(sup_mask[None, ...])
         supplement_mask = F.interpolate(supplement_mask, (height//8, width//8), mode='bilinear').float()
@@ -194,14 +188,13 @@ class MaskedProcessor(nn.Module):
             sigmoid_values.append(sigmoid_value)
         sigmoid_values = torch.stack(sigmoid_values, dim=0)[None, ...].to(ca_output.device)
         
-
-        in_box = torch.from_numpy(np.array(in_box))[None, ...].float().to(ca_output.device)  # (1, instance_num, 4)
+        in_box = torch.from_numpy(np.array(in_box))[None, ...].float().to(ca_output.device)
 
         other_info = {}
         other_info['image_token'] = hidden_states_cond[None, ...]
         other_info['context'] = encoder_hidden_states[1:, ...] if do_classifier_free_guidance else encoder_hidden_states
         other_info['box'] = in_box
-        other_info['context_pooler'] = embeds_pooler  # (instance_num, 1, 768)
+        other_info['context_pooler'] = embeds_pooler
         other_info['supplement_mask'] = supplement_mask
         other_info['height'] = height
         other_info['width'] = width
@@ -231,7 +224,6 @@ def set_processors(unet, **kwargs):
         elif name.startswith("down_blocks"):
             block_id = int(name[len("down_blocks.")])
             hidden_size = unet.config.block_out_channels[block_id]  
-        # 交叉注意力替换为mask attention              
         if cross_attention_dim is not None:    
             attn_processors[name] = MaskedProcessor(hidden_size=hidden_size, 
                                                     cross_attention_dim=cross_attention_dim,
@@ -248,7 +240,6 @@ class MaskedProcessor2(nn.Module):
         self.hidden_size = hidden_size
         self.cross_attention_dim = cross_attention_dim
         self.use_ea_attn = use_ea_attn
-        # self.fusion = MIFusion(hidden_size, context_dim=cross_attention_dim) if use_ea_attn else None
         
     def __call__(
             self,
@@ -283,7 +274,6 @@ class MaskedProcessor2(nn.Module):
                 hidden_states_cond = hidden_states.repeat(instance_num + 1, 1, 1)
                 hidden_states = hidden_states_cond
         
-        # QKV Operation of Vanilla Self-Attention or Cross-Attention
         query = attn.to_q(hidden_states)
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
@@ -292,7 +282,7 @@ class MaskedProcessor2(nn.Module):
         key = attn.head_to_batch_dim(key)
         value = attn.head_to_batch_dim(value)
         
-        attention_probs = attn.get_attention_scores(query, key, attention_mask)  # 48 4096 77
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
         hidden_states = torch.bmm(attention_probs, value)
         hidden_states = attn.batch_to_head_dim(hidden_states)
         hidden_states = attn.to_out[0](hidden_states)
@@ -302,11 +292,10 @@ class MaskedProcessor2(nn.Module):
             return hidden_states
         
         if do_classifier_free_guidance:
-            hidden_states_uncond = hidden_states[[0], ...]  # torch.Size([1, HW, C])
-            ca_output = hidden_states[1: , ...].unsqueeze(0)  # torch.Size([1, 1+instance_num, 5, 64, 1280])
+            hidden_states_uncond = hidden_states[[0], ...]
+            ca_output = hidden_states[1: , ...].unsqueeze(0)
         else:
             ca_output = hidden_states.unsqueeze(0)
-
 
         hidden_states_cond = torch.sum(ca_output, dim=1)
         
@@ -328,8 +317,7 @@ def set_processors2(unet, **kwargs):
                 use_ea_attn = True
         elif name.startswith("down_blocks"):
             block_id = int(name[len("down_blocks.")])
-            hidden_size = unet.config.block_out_channels[block_id]  
-        # 交叉注意力替换为mask attention              
+            hidden_size = unet.config.block_out_channels[block_id]                
         if cross_attention_dim is not None:    
             attn_processors[name] = MaskedProcessor2(hidden_size=hidden_size, 
                                                     cross_attention_dim=cross_attention_dim,
