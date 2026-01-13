@@ -48,7 +48,6 @@ data_emb_dict = torch.load('path/to/dior_emb_train.pt')
 def get_similar_examplers(query_img_name, prompt_emb, topk=5, sim_mode='both'):
     prompt_emb = F.normalize(prompt_emb, dim=-1).detach().cpu()
 
-    # go through the embeddings and get the most similar topk examples
     img_name_list = []
     sim_val_list = []
     for img_name, data_emb in data_emb_dict.items():
@@ -69,7 +68,6 @@ def get_similar_examplers(query_img_name, prompt_emb, topk=5, sim_mode='both'):
     
         sim_val_list.append(sim_val.item())
 
-    # sort the similarity values and obtain the topk one
     sim_val_list, img_name_list = zip(*sorted(zip(sim_val_list, img_name_list)))
     sim_val_list = list(sim_val_list)
     img_name_list = list(img_name_list)
@@ -123,4 +121,4 @@ def generate_adaptive_weight_masks(batch_obboxes, image_size=(512, 512), target_
         )
         masks.append(weight_mask)
 
-    return torch.cat(masks, dim=0)  # [B, 1, h, w]
+    return torch.cat(masks, dim=0)
