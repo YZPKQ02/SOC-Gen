@@ -483,7 +483,7 @@ if __name__ == '__main__':
         attn_layers.load_state_dict(processor_state_dict, strict=False)
     else:
         print("[Warning] No processor weight found at:", processor_ckpt_path)
-
+    
     controlnet_weights_path = os.path.join(ckpt_path, "controlnet/diffusion_pytorch_model.safetensors")
     controlnet = CustomControlNetModel.from_pretrained(os.path.join(ckpt_path, 'controlnet'))
     set_processors(controlnet)
@@ -504,45 +504,56 @@ if __name__ == '__main__':
     pipe.My_Proj_Model.load_state_dict(torch.load(os.path.join(ckpt_path, 'ImageProjModel.pth')))
     pipe.to("cuda")
 
-    data = []
-    with open(os.path.join(data_path, 'metadata.jsonl'), 'r') as f:
-        for line in f:
-            data.append(json.loads(line))
-
     negative_prompt = 'worst quality, low quality, bad anatomy, watermark, text, blurry'
 
-    save_path_prefix = './gen_dior/2025_' + time.strftime('%m%d_%H%M', time.localtime(time.time()))
-    
-    for sample in data:
-        file_name = sample['file_name']
-        prompts = [sample['caption']]
-        bboxes = [sample['bndboxes']]
-        obboxes = [sample['obboxes']]
-        condition_file_name = sample['condition_file_name']
-        condition_image = Image.open(os.path.join(data_path, file_name.split("/")[1])).convert('RGB')
-        conditioning_image_transforms = transforms.Compose(
-            [
-                transforms.Resize((512, 512)),
-                transforms.CenterCrop(512),
-                transforms.ToTensor(),
-            ]
-        )
-        condition_image = conditioning_image_transforms(condition_image).to("cuda")
-        condition_image = condition_image.unsqueeze(0)
+    prompts = [
+        "This is an aerial image of ground track field. There is one baseball field towards the north-south direction, one ground track field towards the east-west direction in the center of the image. There is one baseball field towards the east-west direction in the upper-right corner of the image.", 
+        "baseballfield", 
+        "baseballfield", 
+        "groundtrackfield",
+        "",
+        "",
+        "",
+        ]
+    bboxes = [
+        [0.2175, 0.31, 0.40375, 0.50625], 
+        [0.6975, 0.12125, 0.8425, 0.2625], 
+        [0.18625, 0.47375, 0.85875, 0.9175], 
+        [0, 0, 0, 0], 
+        [0, 0, 0, 0], 
+        [0, 0, 0, 0]
+    ]
+    obboxes = [
+        [0.71, 0.1075, 0.8575, 0.13375, 0.83125, 0.2775, 0.685, 0.25125], 
+        [0.20125, 0.32875, 0.38125, 0.29625, 0.415, 0.475, 0.235, 0.50875], 
+        [0.14, 0.63, 0.80625, 0.43875, 0.89875, 0.76, 0.23125, 0.95125], 
+        [0, 0, 0, 0, 0, 0, 0, 0], 
+        [0, 0, 0, 0, 0, 0, 0, 0], 
+        [0, 0, 0, 0, 0, 0, 0, 0]
+    ]
+    condition_image_path = "path/to/sketch.png"
+    condition_image = Image.open(condition_image_path).convert('RGB')
 
-        image = pipe(
-            prompt=prompts,
-            obboxes=obboxes,
-            bboxes=bboxes,
-            control_image=condition_image,
-            negative_prompt=negative_prompt,
-            num_inference_steps=50,
-            guidance_scale=7.5,
-            height=512,
-            width=512,
-        ).images[0]
+    conditioning_image_transforms = transforms.Compose(
+        [
+            transforms.Resize((512, 512)),
+            transforms.CenterCrop(512),
+            transforms.ToTensor(),
+        ]
+    )
+    condition_image = conditioning_image_transforms(condition_image).to("cuda")
+    condition_image = condition_image.unsqueeze(0)
 
-        if os.path.exists(save_path_prefix) == False:
-            os.makedirs(save_path_prefix)
-        image.save(os.path.join(save_path_prefix, file_name.split("/")[1]))
+    image = pipe(
+        prompt=prompts,
+        obboxes=obboxes,
+        bboxes=bboxes,
+        control_image=condition_image,
+        negative_prompt=negative_prompt,
+        num_inference_steps=50,
+        guidance_scale=7.5,
+        height=512,
+        width=512,
+    ).images[0]
 
+    image.save('generated_example.png')
