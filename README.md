@@ -29,30 +29,10 @@ Object-Aware ControlNet.
 <img src="demo/variation.png" height="100%" width="100%"/>
 </div>
 
-<table width="100%">
-  <tr>
-    <!-- Left: Text -->
-    <td width="45%" valign="top">
-      <p style="font-size:15px; line-height:1.5;">
-        <strong>Class-specific performance</strong> in the object detection task
-        with <strong>YOLOv8</strong> using different data synthesis methods.
-      </p>
-      <p style="font-size:14px; color:#666;">
-        The radar chart reports per-class mAP scores, highlighting the impact of
-        different synthetic data generation strategies on detection performance.
-      </p>
-    </td>
-    <!-- Right: Image -->
-    <td width="55%" align="center">
-      <img src="demo/radar_graph.png" width="420"/>
-      <br>
-      <em style="font-size:13px; color:#666;">
-        Figure 1: Per-class detection performance comparison.
-      </em>
-    </td>
-  </tr>
-</table>
-
+* <strong>Class-specific performance</strong> in the object detection task with <strong>YOLOv8</strong> using different data synthesis methods.
+<div align=center>
+<img src="demo/radar_graph.png" height="70%" width="70%"/>
+</div>
 
 
 ## Environments
