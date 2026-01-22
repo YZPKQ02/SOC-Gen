@@ -21,7 +21,7 @@ Object-Aware ControlNet.
 
 * Comparison between our SOC-Gen and other methods.
 <div align=center>
-<img src="demo/results.png" height="100%" width="100%"/>
+<img src="demo/qualitative.png" height="100%" width="100%"/>
 </div>
 
 * Comparisons between the generated images of our SOC-Gen by replacing the original sketch with other control conditions.
